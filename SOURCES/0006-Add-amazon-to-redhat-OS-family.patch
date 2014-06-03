@@ -1,0 +1,26 @@
+From 34c75760d3de53312f58d451d06e21f7f294310f Mon Sep 17 00:00:00 2001
+From: Andrew Jorgensen <ajorgens@amazon.com>
+Date: Wed, 4 Sep 2013 11:46:29 -0700
+Subject: [PATCH] Add amazon to redhat OS family
+
+Reviewed-by: Matt Nierzwicki <nierzwic@amazon.com>
+---
+ cloudinit/distros/__init__.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/cloudinit/distros/__init__.py b/cloudinit/distros/__init__.py
+index 9e815a3..f99a82f 100644
+--- a/cloudinit/distros/__init__.py
++++ b/cloudinit/distros/__init__.py
+@@ -40,7 +40,7 @@ from cloudinit.distros.parsers import hosts
+ 
+ OSFAMILIES = {
+     'debian': ['debian', 'ubuntu'],
+-    'redhat': ['fedora', 'rhel']
++    'redhat': ['fedora', 'rhel', 'amazon']
+ }
+ 
+ LOG = logging.getLogger(__name__)
+-- 
+1.8.3.1
+

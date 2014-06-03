@@ -1,0 +1,98 @@
+From 3e237cf63707cf00de448fe8f8946b75959d18ac Mon Sep 17 00:00:00 2001
+From: Ethan Faust <efaust@amazon.com>
+Date: Wed, 19 Mar 2014 16:09:51 -0700
+Subject: [PATCH] Remove prettytable dependency
+
+---
+ cloudinit/config/cc_ssh_authkey_fingerprints.py |  2 +-
+ cloudinit/netinfo.py                            |  2 +-
+ cloudinit/simpletable.py                        | 51 +++++++++++++++++++++++++
+ 3 files changed, 53 insertions(+), 2 deletions(-)
+ create mode 100644 cloudinit/simpletable.py
+
+diff --git a/cloudinit/config/cc_ssh_authkey_fingerprints.py b/cloudinit/config/cc_ssh_authkey_fingerprints.py
+index c38bcea..7df76c5 100644
+--- a/cloudinit/config/cc_ssh_authkey_fingerprints.py
++++ b/cloudinit/config/cc_ssh_authkey_fingerprints.py
+@@ -19,7 +19,7 @@
+ import base64
+ import hashlib
+ 
+-from prettytable import PrettyTable
++from cloudinit.simpletable import SimpleTable as PrettyTable
+ 
+ # Ensure this is aliased to a name not 'distros'
+ # since the module attribute 'distros'
+diff --git a/cloudinit/netinfo.py b/cloudinit/netinfo.py
+index feba5a6..03e5541 100644
+--- a/cloudinit/netinfo.py
++++ b/cloudinit/netinfo.py
+@@ -22,7 +22,7 @@
+ 
+ import cloudinit.util as util
+ 
+-from prettytable import PrettyTable
++from cloudinit.simpletable import SimpleTable as PrettyTable
+ 
+ 
+ def netdev_info(empty=""):
+diff --git a/cloudinit/simpletable.py b/cloudinit/simpletable.py
+new file mode 100644
+index 0000000..8690a47
+--- /dev/null
++++ b/cloudinit/simpletable.py
+@@ -0,0 +1,51 @@
++try:
++    from StringIO import StringIO
++except ImportError:
++    from io import StringIO
++
++
++class SimpleTable:
++    """
++    a minimal implementation of PrettyTable
++    for distribution with cloud-init
++    """
++
++    def __init__(self, fields):
++        self.fields = fields
++        self.rows = []
++
++        # initialize list of 0s the same length
++        # as the number of fields
++        self.column_widths = [0] * len(self.fields)
++        self.update_column_widths(fields)
++
++    def update_column_widths(self, values):
++        for i, value in enumerate(values):
++            self.column_widths[i] = max(
++                len(value),
++                self.column_widths[i])
++
++    def add_row(self, values):
++        if len(values) > len(self.fields):
++            raise TypeError('too many values')
++        values = [str(value) for value in values]
++        self.rows.append(values)
++        self.update_column_widths(values)
++
++    def __repr__(self):
++        out = StringIO()
++
++        for i, column in enumerate(self.fields):
++            out.write(column.center(self.column_widths[i] + 2))
++
++        for row in self.rows:
++            out.write('\n')
++            for i, column in enumerate(row):
++                out.write(column.center(self.column_widths[i] + 2))
++
++        result = out.getvalue()
++        out.close()
++        return result
++
++    def get_string(self):
++        return repr(self)
+-- 
+1.8.3.1
+

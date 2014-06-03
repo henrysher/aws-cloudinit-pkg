@@ -1,0 +1,43 @@
+From 377e71d60df14d73d02ee9f2031da00be556083f Mon Sep 17 00:00:00 2001
+From: Andrew Jorgensen <ajorgens@amazon.com>
+Date: Tue, 11 Mar 2014 10:42:50 -0700
+Subject: [PATCH] Prefer file to syslog and improve format
+
+Reviewed-by: Tom Kirchner <tjk@amazon.com>
+Reviewed-by: Ben Cressey <bcressey@amazon.com>
+---
+ config/cloud.cfg.d/05_logging.cfg | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/config/cloud.cfg.d/05_logging.cfg b/config/cloud.cfg.d/05_logging.cfg
+index 410a065..1bc2753 100644
+--- a/config/cloud.cfg.d/05_logging.cfg
++++ b/config/cloud.cfg.d/05_logging.cfg
+@@ -35,10 +35,12 @@ _log:
+    args=(sys.stderr,)
+    
+    [formatter_arg0Formatter]
+-   format=%(asctime)s - %(filename)s[%(levelname)s]: %(message)s
++   format=%(asctime)s cloud-init[%(process)d]: %(filename)s[%(levelname)s]: %(message)s
++   datefmt=%b %d %H:%M:%S
+    
+    [formatter_simpleFormatter]
+    format=[CLOUDINIT] %(filename)s[%(levelname)s]: %(message)s
++   
+  - &log_file |
+    [handler_cloudLogHandler]
+    class=FileHandler
+@@ -54,8 +56,8 @@ _log:
+ 
+ log_cfgs:
+ # These will be joined into a string that defines the configuration
+- - [ *log_base, *log_syslog ]
+-# These will be joined into a string that defines the configuration
+  - [ *log_base, *log_file ]
++# These will be joined into a string that defines the configuration
++ - [ *log_base, *log_syslog ]
+ # A file path can also be used
+ # - /etc/log.conf
+-- 
+1.8.3.1
+

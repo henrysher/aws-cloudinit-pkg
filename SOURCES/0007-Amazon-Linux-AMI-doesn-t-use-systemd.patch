@@ -1,0 +1,27 @@
+From 19617f2e1a98d3677dbec5918173772be15a0f74 Mon Sep 17 00:00:00 2001
+From: Andrew Jorgensen <ajorgens@amazon.com>
+Date: Wed, 4 Sep 2013 11:47:12 -0700
+Subject: [PATCH] Amazon Linux AMI doesn't use systemd
+
+Reviewed-by: Matt Nierzwicki <nierzwic@amazon.com>
+Reviewed-by: Ethan Faust <efaust@amazon.com>
+Reviewed-by: Cristian Gafton <gafton@amazon.com>
+---
+ cloudinit/distros/amazon.py | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/cloudinit/distros/amazon.py b/cloudinit/distros/amazon.py
+index 020abed..b731ff8 100644
+--- a/cloudinit/distros/amazon.py
++++ b/cloudinit/distros/amazon.py
+@@ -98,3 +98,7 @@ class Distro(rhel.Distro):
+             # bugfix updates.
+             pass
+         return args
++
++    def _dist_uses_systemd(self):
++        # Amazon Linux AMI doesn't use systemd yet
++        return False
+-- 
+1.8.3.1
+

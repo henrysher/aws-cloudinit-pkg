@@ -1,0 +1,88 @@
+From 8ef6151cbf0e84ba28608447e4c4090a5b6e6ab0 Mon Sep 17 00:00:00 2001
+From: Andrew Jorgensen <ajorgens@amazon.com>
+Date: Thu, 29 Aug 2013 15:58:17 -0700
+Subject: [PATCH] Add pipe_cat and close_stdin options for subp
+
+Reviewed-by: Matt Nierzwicki <nierzwic@amazon.com>
+Reviewed-by: Ethan Faust <efaust@amazon.com>
+---
+ cloudinit/distros/rhel.py |  6 +++++-
+ cloudinit/util.py         | 27 ++++++++++++++++++++++-----
+ 2 files changed, 27 insertions(+), 6 deletions(-)
+
+diff --git a/cloudinit/distros/rhel.py b/cloudinit/distros/rhel.py
+index 174da3a..5615b42 100644
+--- a/cloudinit/distros/rhel.py
++++ b/cloudinit/distros/rhel.py
+@@ -3,10 +3,12 @@
+ #    Copyright (C) 2012 Canonical Ltd.
+ #    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+ #    Copyright (C) 2012 Yahoo! Inc.
++#    Copyright (C) 2014 Amazon.com, Inc. or its affiliates.
+ #
+ #    Author: Scott Moser <scott.moser@canonical.com>
+ #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
+ #    Author: Joshua Harlow <harlowja@yahoo-inc.com>
++#    Author: Andrew Jorgensen <ajorgens@amazon.com>
+ #
+ #    This program is free software: you can redistribute it and/or modify
+ #    it under the terms of the GNU General Public License version 3, as
+@@ -267,7 +269,9 @@ class Distro(distros.Distro):
+         cmd.extend(pkglist)
+ 
+         # Allow the output of this to flow outwards (ie not be captured)
+-        util.subp(cmd, capture=False)
++        # Also, pipe it through cat so it won't display progress bars,
++        # and close stdin so that it can't ask questions.
++        util.subp(cmd, capture=False, pipe_cat=True, close_stdin=True)
+ 
+     def update_package_sources(self):
+         self._runner.run("update-sources", self.package_command,
+diff --git a/cloudinit/util.py b/cloudinit/util.py
+index 184623f..2b5987f 100644
+--- a/cloudinit/util.py
++++ b/cloudinit/util.py
+@@ -1476,7 +1476,9 @@ def delete_dir_contents(dirname):
+ 
+ 
+ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
+-         logstring=False):
++         close_stdin=False, pipe_cat=False, logstring=False):
++    if data and close_stdin:
++        raise ValueError('Incompatible parameters: data and close_stdin')
+     if rcs is None:
+         rcs = [0]
+     try:
+@@ -1495,10 +1497,25 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
+             stdout = subprocess.PIPE
+             stderr = subprocess.PIPE
+         stdin = subprocess.PIPE
+-        sp = subprocess.Popen(args, stdout=stdout,
+-                        stderr=stderr, stdin=stdin,
+-                        env=env, shell=shell)
+-        (out, err) = sp.communicate(data)
++        # Some processes are less chatty when piped through cat, because they
++        # won't detect a terminal (yum being a prime example).
++        if pipe_cat:
++            cat = subprocess.Popen('cat', stdout=stdout, stderr=stderr,
++                                   stdin=subprocess.PIPE)
++            sp = subprocess.Popen(args, stdout=cat.stdin,
++                                  stderr=stderr, stdin=stdin,
++                                  env=env, shell=shell)
++            if close_stdin:
++                sp.stdin.close()
++            (_out, err) = sp.communicate(data)
++            (out, _err) = cat.communicate()
++        else:
++            sp = subprocess.Popen(args, stdout=stdout,
++                            stderr=stderr, stdin=stdin,
++                            env=env, shell=shell)
++            if close_stdin:
++                sp.stdin.close()
++            (out, err) = sp.communicate(data)
+     except OSError as e:
+         raise ProcessExecutionError(cmd=args, reason=e)
+     rc = sp.returncode  # pylint: disable=E1101
+-- 
+1.8.3.1
+

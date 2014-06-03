@@ -1,0 +1,74 @@
+From 198967635dfe3542f1d9391c3a1c6996b8adca13 Mon Sep 17 00:00:00 2001
+From: Andrew Jorgensen <ajorgens@amazon.com>
+Date: Wed, 5 Mar 2014 14:56:13 -0800
+Subject: [PATCH] Don't use cheetah for formatting log entries
+
+Cheetah returns everything as unicode by default (not utf-8 or ascii).
+Syslog chokes on unicode.
+
+Reviewed-by: Tom Kirchner <tjk@amazon.com>
+Reviewed-by: Ben Cressey <bcressey@amazon.com>
+---
+ bin/cloud-init | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
+
+diff --git a/bin/cloud-init b/bin/cloud-init
+index c5a5b94..85b1451 100755
+--- a/bin/cloud-init
++++ b/bin/cloud-init
+@@ -4,10 +4,12 @@
+ #    Copyright (C) 2012 Canonical Ltd.
+ #    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+ #    Copyright (C) 2012 Yahoo! Inc.
++#    Copyright (C) 2014 Amazon.com, Inc. or its affiliates
+ #
+ #    Author: Scott Moser <scott.moser@canonical.com>
+ #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
+ #    Author: Joshua Harlow <harlowja@yahoo-inc.com>
++#    Author: Andrew Jorgensen <ajorgens@amazon.com>
+ #
+ #    This program is free software: you can redistribute it and/or modify
+ #    it under the terms of the GNU General Public License version 3, as
+@@ -41,7 +43,6 @@ from cloudinit import netinfo
+ from cloudinit import signal_handler
+ from cloudinit import sources
+ from cloudinit import stages
+-from cloudinit import templater
+ from cloudinit import util
+ from cloudinit import version
+ 
+@@ -49,9 +50,9 @@ from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
+                                 CLOUD_CONFIG)
+ 
+ 
+-# Pretty little cheetah formatted welcome message template
+-WELCOME_MSG_TPL = ("Cloud-init v. ${version} running '${action}' at "
+-                   "${timestamp}. Up ${uptime} seconds.")
++# Welcome message template
++WELCOME_MSG_TPL = ("Cloud-init v. {version} running '{action}' at "
++                   "{timestamp}. Up {uptime} seconds.")
+ 
+ # Module section template
+ MOD_SECTION_TPL = "cloud_%s_modules"
+@@ -95,13 +96,11 @@ def welcome(action, msg=None):
+ 
+ 
+ def welcome_format(action):
+-    tpl_params = {
+-        'version': version.version_string(),
+-        'uptime': util.uptime(),
+-        'timestamp': util.time_rfc2822(),
+-        'action': action,
+-    }
+-    return templater.render_string(WELCOME_MSG_TPL, tpl_params)
++    return WELCOME_MSG_TPL.format(
++        version=version.version_string(),
++        uptime=util.uptime(),
++        timestamp=util.time_rfc2822(),
++        action=action)
+ 
+ 
+ def extract_fns(args):
+-- 
+1.8.3.1
+

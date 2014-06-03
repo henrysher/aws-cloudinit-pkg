@@ -1,0 +1,75 @@
+From 5a9aa7ed9d7a2f55782cd52cb2b3d5b67d6d76e6 Mon Sep 17 00:00:00 2001
+From: Andrew Jorgensen <ajorgens@amazon.com>
+Date: Thu, 6 Mar 2014 13:26:05 -0800
+Subject: [PATCH] Catch UrlError when #includeing URLs
+
+Without this the entire stage can fail, which will leave an instance
+unaccessible.
+
+Reviewed-by: Tom Kirchner <tjk@amazon.com>
+Reviewed-by: Matt Nierzwicki <nierzwic@amazon.com>
+Reviewed-by: Ben Cressey <bcressey@amazon.com>
+---
+ cloudinit/user_data.py | 26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)
+
+diff --git a/cloudinit/user_data.py b/cloudinit/user_data.py
+index c73be28..5803540 100644
+--- a/cloudinit/user_data.py
++++ b/cloudinit/user_data.py
+@@ -3,10 +3,12 @@
+ #    Copyright (C) 2012 Canonical Ltd.
+ #    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+ #    Copyright (C) 2012 Yahoo! Inc.
++#    Copyright (C) 2014 Amazon.com, Inc. or its affiliates.
+ #
+ #    Author: Scott Moser <scott.moser@canonical.com>
+ #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
+ #    Author: Joshua Harlow <harlowja@yahoo-inc.com>
++#    Author: Andrew Jorgensen <ajorgens@amazon.com>
+ #
+ #    This program is free software: you can redistribute it and/or modify
+ #    it under the terms of the GNU General Public License version 3, as
+@@ -30,6 +32,7 @@ from email.mime.text import MIMEText
+ from cloudinit import handlers
+ from cloudinit import log as logging
+ from cloudinit import util
++from cloudinit.url_helper import UrlError
+ 
+ LOG = logging.getLogger(__name__)
+ 
+@@ -173,16 +176,23 @@ class UserDataProcessor(object):
+             if include_once_on and os.path.isfile(include_once_fn):
+                 content = util.load_file(include_once_fn)
+             else:
+-                resp = util.read_file_or_url(include_url,
+-                                             ssl_details=self.ssl_details)
+-                if include_once_on and resp.ok():
+-                    util.write_file(include_once_fn, str(resp), mode=0600)
+-                if resp.ok():
+-                    content = str(resp)
+-                else:
++                try:
++                    resp = util.read_file_or_url(include_url,
++                                                 ssl_details=self.ssl_details)
++
++                    if include_once_on and resp.ok():
++                        util.write_file(include_once_fn, str(resp), mode=0600)
++                    if resp.ok():
++                        content = str(resp)
++                    else:
++                        raise UrlError(None, resp.code)
++                except UrlError as urle:
+                     LOG.warn(("Fetching from %s resulted in"
+                               " a invalid http code of %s"),
+-                             include_url, resp.code)
++                             include_url, urle.code)
++                except IOError as ioe:
++                    LOG.warn(("Fetching from %s resulted in an IOError: %s"),
++                             include_url, ioe.strerror)
+ 
+             if content is not None:
+                 new_msg = convert_string(content)
+-- 
+1.8.3.1
+

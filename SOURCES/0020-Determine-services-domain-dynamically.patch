@@ -1,0 +1,113 @@
+From 5f7b5fa36e854d39565170674a3624170a06a5b9 Mon Sep 17 00:00:00 2001
+From: Ethan Faust <efaust@amazon.com>
+Date: Mon, 17 Mar 2014 15:43:49 -0700
+Subject: [PATCH] Determine services domain dynamically
+
+---
+ cloudinit/distros/__init__.py      | 12 +++++++++---
+ cloudinit/sources/DataSourceEc2.py | 10 +++++++++-
+ cloudinit/sources/__init__.py      |  7 ++++++-
+ 3 files changed, 24 insertions(+), 5 deletions(-)
+
+diff --git a/cloudinit/distros/__init__.py b/cloudinit/distros/__init__.py
+index dc6ab3f..a8f3b0e 100644
+--- a/cloudinit/distros/__init__.py
++++ b/cloudinit/distros/__init__.py
+@@ -115,11 +115,13 @@ class Distro(object):
+         return _get_arch_package_mirror_info(mirror_info, arch)
+ 
+     def get_package_mirror_info(self, arch=None, region=None,
+-                                availability_zone=None):
++                                availability_zone=None,
++                                services_domain=None):
+         # This resolves the package_mirrors config option
+         # down to a single dict of {mirror_name: mirror_url}
+         arch_info = self._get_arch_package_mirror_info(arch)
+-        return _get_package_mirror_info(availability_zone=availability_zone,
++        return _get_package_mirror_info(services_domain=services_domain,
++                                        availability_zone=availability_zone,
+                                         region=region, mirror_info=arch_info)
+ 
+     def apply_network(self, settings, bring_up=True):
+@@ -515,7 +517,8 @@ class Distro(object):
+ 
+ 
+ def _get_package_mirror_info(mirror_info, availability_zone=None, region=None,
+-                             mirror_filter=util.search_for_mirror):
++                             mirror_filter=util.search_for_mirror,
++                             services_domain=None):
+     # given a arch specific 'mirror_info' entry (from package_mirrors)
+     # search through the 'search' entries, and fallback appropriately
+     # return a dict with only {name: mirror} entries.
+@@ -532,6 +535,9 @@ def _get_package_mirror_info(mirror_info, availability_zone=None, region=None,
+         subst['region'] = region
+         subst['ec2_region'] = region
+ 
++    if services_domain:
++        subst['services_domain'] = services_domain
++
+     results = {}
+     for (name, mirror) in mirror_info.get('failsafe', {}).iteritems():
+         results[name] = mirror
+diff --git a/cloudinit/sources/DataSourceEc2.py b/cloudinit/sources/DataSourceEc2.py
+index 62f938e..9aa2cef 100644
+--- a/cloudinit/sources/DataSourceEc2.py
++++ b/cloudinit/sources/DataSourceEc2.py
+@@ -34,13 +34,14 @@ LOG = logging.getLogger(__name__)
+ DEF_MD_URL = "http://169.254.169.254"
+ 
+ # Which version we are requesting of the ec2 metadata apis
+-DEF_MD_VERSION = '2009-04-04'
++DEF_MD_VERSION = 'latest'
+ 
+ # Default metadata urls that will be used if none are provided
+ # They will be checked for 'resolveability' and some of the
+ # following may be discarded if they do not resolve
+ DEF_MD_URLS = [DEF_MD_URL, "http://instance-data.:8773"]
+ 
++DEF_MD_SERVICES_DOMAIN = 'amazonaws.com'
+ 
+ class DataSourceEc2(sources.DataSource):
+     def __init__(self, sys_cfg, distro, paths):
+@@ -219,6 +220,13 @@ class DataSourceEc2(sources.DataSource):
+         except KeyError:
+             return None
+ 
++    @property
++    def services_domain(self):
++        try:
++            return self.metadata['services']['domain']
++        except KeyError:
++            return DEF_MD_SERVICES_DOMAIN
++
+ # Used to match classes to dependencies
+ datasources = [
+   (DataSourceEc2, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+diff --git a/cloudinit/sources/__init__.py b/cloudinit/sources/__init__.py
+index d15363d..288a866 100644
+--- a/cloudinit/sources/__init__.py
++++ b/cloudinit/sources/__init__.py
+@@ -141,6 +141,10 @@ class DataSource(object):
+     def region(self):
+         return self.metadata.get('region')
+ 
++    @property
++    def services_domain(self):
++        return None
++
+     def get_instance_id(self):
+         if not self.metadata or 'instance-id' not in self.metadata:
+             # Return a magic not really instance id string
+@@ -189,7 +193,8 @@ class DataSource(object):
+     def get_package_mirror_info(self):
+         return self.distro.get_package_mirror_info(
+             region=self.region,
+-            availability_zone=self.availability_zone)
++            availability_zone=self.availability_zone,
++            services_domain=self.services_domain)
+ 
+ 
+ def normalize_pubkey_data(pubkey_data):
+-- 
+1.8.3.1
+

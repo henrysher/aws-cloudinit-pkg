@@ -1,0 +1,25 @@
+From 31cfe03bdf039b4bf51fa8579ace9813d69d1757 Mon Sep 17 00:00:00 2001
+From: Andrew Jorgensen <ajorgens@amazon.com>
+Date: Wed, 5 Mar 2014 16:56:01 -0800
+Subject: [PATCH] Have rsyslog filter on syslogtag startswith [CLOUDINIT]
+
+Reviewed-by: Tom Kirchner <tjk@amazon.com>
+Reviewed-by: Ben Cressey <bcressey@amazon.com>
+---
+ tools/21-cloudinit.conf | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/21-cloudinit.conf b/tools/21-cloudinit.conf
+index 248e3b1..7123e5a 100644
+--- a/tools/21-cloudinit.conf
++++ b/tools/21-cloudinit.conf
+@@ -1,5 +1,5 @@
+ # Log cloudinit generated log messages to file
+-:programname, isequal, "cloud-init" /var/log/cloud-init.log
++:syslogtag, startswith, "[CLOUDINIT]" /var/log/cloud-init.log
+ 
+ # comment out the following line to allow CLOUDINIT messages through.
+ # Doing so means you'll also get CLOUDINIT messages in /var/log/syslog
+-- 
+1.8.3.1
+

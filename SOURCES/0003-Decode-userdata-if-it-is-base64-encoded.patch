@@ -1,0 +1,105 @@
+From bff09c20f06e3be2b6559c7f0086f02c62b64e82 Mon Sep 17 00:00:00 2001
+From: Andrew Jorgensen <ajorgens@amazon.com>
+Date: Wed, 28 Aug 2013 13:54:20 -0700
+Subject: [PATCH] Decode userdata if it is base64 encoded
+
+Reviewed-by: Ethan Faust <efaust@amazon.com>
+---
+ cloudinit/user_data.py |  5 ++++-
+ cloudinit/util.py      | 25 +++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/cloudinit/user_data.py b/cloudinit/user_data.py
+index df069ff..c73be28 100644
+--- a/cloudinit/user_data.py
++++ b/cloudinit/user_data.py
+@@ -272,7 +272,10 @@ def convert_string(raw_data, headers=None):
+         raw_data = ''
+     if not headers:
+         headers = {}
+-    data = util.decomp_gzip(raw_data)
++    # Some tools and users will base64 encode their data before handing it to
++    # an API like boto, which will base64 encode it again, so we try to decode.
++    data = util.decode_base64(raw_data)
++    data = util.decomp_gzip(data)
+     if "mime-version:" in data[0:4096].lower():
+         msg = email.message_from_string(data)
+         for (key, val) in headers.iteritems():
+diff --git a/cloudinit/util.py b/cloudinit/util.py
+index 331c212..184623f 100644
+--- a/cloudinit/util.py
++++ b/cloudinit/util.py
+@@ -3,10 +3,12 @@
+ #    Copyright (C) 2012 Canonical Ltd.
+ #    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+ #    Copyright (C) 2012 Yahoo! Inc.
++#    Copyright (C) 2014 Amazon.com, Inc. or its affiliates.
+ #
+ #    Author: Scott Moser <scott.moser@canonical.com>
+ #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
+ #    Author: Joshua Harlow <harlowja@yahoo-inc.com>
++#    Author: Andrew Jorgensen <ajorgens@amazon.com>
+ #
+ #    This program is free software: you can redistribute it and/or modify
+ #    it under the terms of the GNU General Public License version 3, as
+@@ -24,6 +26,7 @@
+ 
+ from StringIO import StringIO
+ 
++import base64
+ import contextlib
+ import copy as obj_copy
+ import errno
+@@ -34,6 +37,7 @@ import hashlib
+ import os
+ import platform
+ import pwd
++import re
+ import random
+ import shutil
+ import socket
+@@ -70,6 +74,8 @@ FN_ALLOWED = ('_-.()' + string.digits + string.ascii_letters)
+ # Helper utils to see if running in a container
+ CONTAINER_TESTS = ['running-in-container', 'lxc-is-container']
+ 
++# An imperfect, but close enough regex to detect Base64 encoding
++BASE64 = re.compile('^[A-Za-z0-9+/\-_\n]+=?=?$')
+ 
+ # Made to have same accessors as UrlResponse so that the
+ # read_file_or_url can return this or that object and the
+@@ -188,6 +194,10 @@ class MountFailedError(Exception):
+     pass
+ 
+ 
++class DecodingError(Exception):
++    pass
++
++
+ class DecompressionError(Exception):
+     pass
+ 
+@@ -316,6 +326,21 @@ def clean_filename(fn):
+     return fn
+ 
+ 
++def decode_base64(data, quiet=True):
++    try:
++        # Some builds of python don't throw an exception when the data is not
++        # proper Base64, so we check it first.
++        if BASE64.match(data):
++            return base64.urlsafe_b64decode(data)
++        else:
++            return data
++    except Exception as e:
++        if quiet:
++            return data
++        else:
++            raise DecodingError(str(e))
++
++
+ def decomp_gzip(data, quiet=True):
+     try:
+         buf = StringIO(str(data))
+-- 
+1.8.3.1
+

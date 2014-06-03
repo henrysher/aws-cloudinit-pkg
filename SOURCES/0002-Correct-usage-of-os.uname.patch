@@ -1,0 +1,30 @@
+From 95416b80babf7cb96a090522d649dd8f140c0cbf Mon Sep 17 00:00:00 2001
+From: Andrew Jorgensen <ajorgens@amazon.com>
+Date: Wed, 28 Aug 2013 14:32:07 -0700
+Subject: [PATCH] Correct usage of os.uname()
+
+Reviewed-by: Ethan Faust <efaust@amazon.com>
+Reviewed-by: Cristian Gafton <gafton@amazon.com>
+Reviewed-by: Tom Kirchner <tjk@amazon.com>
+Reviewed-by: Cyle Riggs <cyler@amazon.com>
+Reviewed-by: Matt Nierzwicki <nierzwic@amazon.com>
+---
+ cloudinit/distros/__init__.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/cloudinit/distros/__init__.py b/cloudinit/distros/__init__.py
+index 50d5259..ecde406 100644
+--- a/cloudinit/distros/__init__.py
++++ b/cloudinit/distros/__init__.py
+@@ -82,7 +82,7 @@ class Distro(object):
+         raise NotImplementedError()
+ 
+     def get_primary_arch(self):
+-        arch = os.uname[4]
++        arch = os.uname()[4]
+         if arch in ("i386", "i486", "i586", "i686"):
+             return "i386"
+         return arch
+-- 
+1.8.3.1
+
